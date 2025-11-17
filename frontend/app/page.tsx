@@ -17,31 +17,28 @@ export default function Home() {
     let t = 0
 
     function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx!.clearRect(0, 0, canvas.width, canvas.height)
 
-      // Fondo degradado
-      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
+      const gradient = ctx!.createLinearGradient(0, 0, canvas.width, canvas.height)
       gradient.addColorStop(0, '#1a1a1a')
       gradient.addColorStop(1, '#333')
-      ctx.fillStyle = gradient
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx!.fillStyle = gradient
+      ctx!.fillRect(0, 0, canvas.width, canvas.height)
 
-      // Círculos flotantes
       for (let i = 0; i < 10; i++) {
         const x = canvas.width / 2 + Math.sin(t + i) * 200
         const y = canvas.height / 2 + Math.cos(t + i * 1.5) * 200
         const radius = 30 + Math.sin(t + i * 0.5) * 10
 
-        ctx.beginPath()
-        ctx.arc(x, y, radius, 0, Math.PI * 2)
-        ctx.fillStyle = `hsl(${(t * 50 + i * 36) % 360}, 70%, 60%)`
-        ctx.fill()
+        ctx!.beginPath()
+        ctx!.arc(x, y, radius, 0, Math.PI * 2)
+        ctx!.fillStyle = `hsl(${(t * 50 + i * 36) % 360}, 70%, 60%)`
+        ctx!.fill()
       }
 
-      // Rectángulo pulsante
       const rectSize = 100 + Math.sin(t * 2) * 20
-      ctx.fillStyle = '#ff0055'
-      ctx.fillRect(canvas.width / 2 - rectSize / 2, canvas.height / 2 - rectSize / 2, rectSize, rectSize)
+      ctx!.fillStyle = '#ff0055'
+      ctx!.fillRect(canvas.width / 2 - rectSize / 2, canvas.height / 2 - rectSize / 2, rectSize, rectSize)
 
       t += 0.02
       requestAnimationFrame(draw)
