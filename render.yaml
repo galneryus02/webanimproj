@@ -1,0 +1,16 @@
+services:
+  - name: frontend
+    type: web
+    env: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    autoDeploy: true
+
+  - name: backend
+    type: web
+    env: python
+    rootDir: backend
+    buildCommand: pip install fastapi uvicorn
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 10000
+    autoDeploy: true
