@@ -27,7 +27,8 @@ export default function Home() {
 
   return (
     <main style={{ padding: '2rem', fontSize: '1.5rem' }}>
-      {loading ? 'Cargando...' : message}
+      <h1>Web Animada de Ejemplo</h1>
+      <p>{loading ? 'Cargando...' : message}</p>
     </main>
   )
 }
