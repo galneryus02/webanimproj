@@ -1,82 +1,219 @@
-// Dentro de la definición del cuadrado
-const square = {
-  x: canvas.width / 2 - 40,
-  y: canvas.height / 2 - 40,
-  size: 80,
-  vx: 0,
-  vy: 0,
-  gravity: 0.3,
-  friction: 0.98,
-  scaleX: 1,
-  scaleY: 1,
+'use client'
+import { useEffect, useRef } from 'react'
+import '../styles/canvas.css'
+
+export default function CanvasScene() {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current as HTMLCanvasElement
+    if (!canvas) return
+    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
+    if (!ctx) return
+
+    canvas.width = window.innerWidth
+    canvas.height = window.innerHeight
+
+    let raf: number | null = null
+    let isDragging = false
+    let offset = { x: 0, y: 0 }
+    let lastPos = { x: 0, y: 0 }
+
+    const restitution = 0.8
+
+    const square = {
+      x: canvas.width / 2 - 40,
+      y: canvas.height / 2 - 40,
+      size: 80,
+      vx: 0,
+      vy: 0,
+      gravity: 0.3,
+      friction: 0.98,
+      scaleX: 1,
+      scaleY: 1,
+    }
+
+    const circles = Array.from({ length: 10 }, (_, i) => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: 30 + Math.random() * 20,
+      color: `hsl(${i * 36}, 70%, 60%)`,
+      vx: 0,
+      vy: 0,
+      friction: 0.95,
+      scaleX: 1,
+      scaleY: 1,
+    }))
+
+    const isInsideSquare = (x: number, y: number) =>
+      x >= square.x &&
+      x <= square.x + square.size &&
+      y >= square.y &&
+      y <= square.y + square.size
+
+    const draw = () => {
+      const W = canvas.width
+      const H = canvas.height
+      ctx.clearRect(0, 0, W, H)
+
+      // Fondo
+      const gradient = ctx.createLinearGradient(0, 0, W, H)
+      gradient.addColorStop(0, '#141414')
+      gradient.addColorStop(1, '#2b2b2b')
+      ctx.fillStyle = gradient
+      ctx.fillRect(0, 0, W, H)
+
+      // Actualizar círculos
+      circles.forEach((c) => {
+        c.x += c.vx
+        c.y += c.vy
+        c.vx *= c.friction
+        c.vy *= c.friction
+
+        // Rebote contra bordes
+        if (c.x - c.r < 0 || c.x + c.r > W) {
+          c.vx *= -restitution
+          c.x = Math.max(c.r, Math.min(c.x, W - c.r))
+        }
+        if (c.y - c.r < 0 || c.y + c.r > H) {
+          c.vy *= -restitution
+          c.y = Math.max(c.r, Math.min(c.y, H - c.r))
+        }
+
+        // Dibujo con deformación
+        ctx.save()
+        ctx.translate(c.x, c.y)
+        ctx.scale(c.scaleX, c.scaleY)
+        ctx.beginPath()
+        ctx.arc(0, 0, c.r, 0, Math.PI * 2)
+        ctx.fillStyle = c.color
+        ctx.fill()
+        ctx.restore()
+
+        // Recuperación gradual de forma
+        c.scaleX += (1 - c.scaleX) * 0.1
+        c.scaleY += (1 - c.scaleY) * 0.1
+      })
+
+      // Física del cuadrado
+      if (!isDragging) {
+        square.vy += square.gravity
+        square.vx *= square.friction
+        square.vy *= square.friction
+        square.x += square.vx
+        square.y += square.vy
+      }
+
+      // Rebote contra bordes
+      if (square.x < 0 || square.x + square.size > W) {
+        square.vx *= -restitution
+        square.x = Math.max(0, Math.min(square.x, W - square.size))
+      }
+      if (square.y < 0 || square.y + square.size > H) {
+        square.vy *= -restitution
+        square.y = Math.max(0, Math.min(square.y, H - square.size))
+      }
+
+      // Colisión con círculos
+      circles.forEach((c) => {
+        const dx = (square.x + square.size / 2) - c.x
+        const dy = (square.y + square.size / 2) - c.y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        const minDist = c.r + square.size / 2
+
+        if (dist < minDist) {
+          const nx = dx / dist
+          const ny = dy / dist
+          const overlap = minDist - dist
+
+          // Corrección absoluta de penetración
+          square.x += nx * overlap
+          square.y += ny * overlap
+
+          // Rebote vectorial
+          const dot = square.vx * nx + square.vy * ny
+          square.vx -= 2 * dot * nx
+          square.vy -= 2 * dot * ny
+          square.vx *= restitution
+          square.vy *= restitution
+
+          // Empujar círculo
+          c.vx += square.vx * 0.5
+          c.vy += square.vy * 0.5
+
+          // Deformación por presión
+          const force = Math.abs(dot)
+          if (force > 5) {
+            square.scaleX = 1 + force * 0.05
+            square.scaleY = 1 - force * 0.05
+            c.scaleX = 1 + force * 0.03
+            c.scaleY = 1 - force * 0.03
+          }
+        }
+
+        // Interacción al arrastrar
+        if (isDragging && dist < minDist + 50) {
+          c.vx += (dx / dist) * -0.5
+          c.vy += (dy / dist) * -0.5
+        }
+      })
+
+      // Dibujo del cuadrado con deformación
+      ctx.save()
+      ctx.translate(square.x + square.size / 2, square.y + square.size / 2)
+      ctx.scale(square.scaleX, square.scaleY)
+      ctx.fillStyle = '#ff0055'
+      ctx.fillRect(-square.size / 2, -square.size / 2, square.size, square.size)
+      ctx.restore()
+
+      // Recuperación gradual de forma
+      square.scaleX += (1 - square.scaleX) * 0.1
+      square.scaleY += (1 - square.scaleY) * 0.1
+
+      raf = requestAnimationFrame(draw)
+    }
+
+    // Eventos
+    const onMouseDown = (e: MouseEvent) => {
+      if (isInsideSquare(e.clientX, e.clientY)) {
+        isDragging = true
+        offset = {
+          x: e.clientX - square.x,
+          y: e.clientY - square.y,
+        }
+        lastPos = { x: square.x, y: square.y }
+        square.vx = 0
+        square.vy = 0
+      }
+    }
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (isDragging) {
+        square.x = e.clientX - offset.x
+        square.y = e.clientY - offset.y
+        square.vx = square.x - lastPos.x
+        square.vy = square.y - lastPos.y
+        lastPos = { x: square.x, y: square.y }
+      }
+    }
+
+    const onMouseUp = () => {
+      isDragging = false
+    }
+
+    canvas.addEventListener('mousedown', onMouseDown)
+    canvas.addEventListener('mousemove', onMouseMove)
+    canvas.addEventListener('mouseup', onMouseUp)
+
+    raf = requestAnimationFrame(draw)
+
+    return () => {
+      if (raf !== null) cancelAnimationFrame(raf)
+      canvas.removeEventListener('mousedown', onMouseDown)
+      canvas.removeEventListener('mousemove', onMouseMove)
+      canvas.removeEventListener('mouseup', onMouseUp)
+    }
+  }, [])
+
+  return <canvas ref={canvasRef} className="canvas-scene" />
 }
-
-// Dentro de la definición de los círculos
-const circles = Array.from({ length: 10 }, (_, i) => ({
-  x: Math.random() * canvas.width,
-  y: Math.random() * canvas.height,
-  r: 30 + Math.random() * 20,
-  color: `hsl(${i * 36}, 70%, 60%)`,
-  vx: 0,
-  vy: 0,
-  friction: 0.95,
-  scaleX: 1,
-  scaleY: 1,
-}))
-
-// En la colisión con círculos
-if (dist < minDist) {
-  const nx = dx / dist
-  const ny = dy / dist
-  const overlap = minDist - dist
-
-  // Corrección absoluta de penetración
-  square.x += nx * overlap
-  square.y += ny * overlap
-
-  // Rebote vectorial
-  const dot = square.vx * nx + square.vy * ny
-  square.vx -= 2 * dot * nx
-  square.vy -= 2 * dot * ny
-  square.vx *= restitution
-  square.vy *= restitution
-
-  // Empujar círculo
-  c.vx += square.vx * 0.5
-  c.vy += square.vy * 0.5
-
-  // Deformación por presión (achatar)
-  const force = Math.abs(dot)
-  if (force > 5) {
-    square.scaleX = 1 + force * 0.05
-    square.scaleY = 1 - force * 0.05
-    c.scaleX = 1 + force * 0.03
-    c.scaleY = 1 - force * 0.03
-  }
-}
-
-// En el dibujo del cuadrado
-ctx.save()
-ctx.translate(square.x + square.size / 2, square.y + square.size / 2)
-ctx.scale(square.scaleX, square.scaleY)
-ctx.fillStyle = '#ff0055'
-ctx.fillRect(-square.size / 2, -square.size / 2, square.size, square.size)
-ctx.restore()
-
-// En el dibujo de los círculos
-ctx.save()
-ctx.translate(c.x, c.y)
-ctx.scale(c.scaleX, c.scaleY)
-ctx.beginPath()
-ctx.arc(0, 0, c.r, 0, Math.PI * 2)
-ctx.fillStyle = c.color
-ctx.fill()
-ctx.restore()
-
-// Recuperación gradual de forma
-square.scaleX += (1 - square.scaleX) * 0.1
-square.scaleY += (1 - square.scaleY) * 0.1
-circles.forEach((c) => {
-  c.scaleX += (1 - c.scaleX) * 0.1
-  c.scaleY += (1 - c.scaleY) * 0.1
-})
