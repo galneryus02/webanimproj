@@ -42,3 +42,52 @@ export const updateCircles = (circles: Circle[], W: number, H: number, restituti
     c.scaleY += (1 - c.scaleY) * 0.1
   })
 }
+
+export const handleCollisions = (
+  square: Square,
+  circles: Circle[],
+  restitution: number,
+  isDragging: boolean
+) => {
+  circles.forEach((c) => {
+    const dx = (square.x + square.size / 2) - c.x
+    const dy = (square.y + square.size / 2) - c.y
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    const minDist = c.r + square.size / 2
+
+    if (dist < minDist) {
+      const nx = dx / dist
+      const ny = dy / dist
+      const overlap = minDist - dist
+
+      // Corrección absoluta
+      square.x += nx * overlap
+      square.y += ny * overlap
+
+      // Rebote vectorial
+      const dot = square.vx * nx + square.vy * ny
+      square.vx -= 2 * dot * nx
+      square.vy -= 2 * dot * ny
+      square.vx *= restitution
+      square.vy *= restitution
+
+      // Empujar círculo
+      c.vx += square.vx * 0.5
+      c.vy += square.vy * 0.5
+
+      // Deformación contenida
+      const force = Math.abs(dot)
+      if (force > 5) {
+        const maxDeform = 0.3
+        c.scaleX = Math.min(1 + force * 0.03, 1 + maxDeform)
+        c.scaleY = Math.max(1 - force * 0.03, 1 - maxDeform)
+      }
+    }
+
+    // Interacción al arrastrar
+    if (isDragging && dist < minDist + 50) {
+      c.vx += (dx / dist) * -0.5
+      c.vy += (dy / dist) * -0.5
+    }
+  })
+}
