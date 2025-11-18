@@ -11,8 +11,12 @@ export default function CanvasScene() {
     const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
     if (!ctx) return
 
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
+    const resizeCanvas = () => {
+      canvas.width = window.innerWidth
+      canvas.height = window.innerHeight
+    }
+    resizeCanvas()
+    window.addEventListener('resize', resizeCanvas)
 
     let raf: number | null = null
     let isDragging = false
@@ -113,7 +117,6 @@ export default function CanvasScene() {
         square.vy *= -restitution
         square.y = Math.max(0, Math.min(square.y, H - square.size))
       }
-
       // Colisión con círculos
       circles.forEach((c) => {
         const dx = (square.x + square.size / 2) - c.x
@@ -141,11 +144,12 @@ export default function CanvasScene() {
           c.vx += square.vx * 0.5
           c.vy += square.vy * 0.5
 
-          // Deformación por presión (solo círculos)
+          // Deformación contenida y realista (solo círculos)
           const force = Math.abs(dot)
           if (force > 5) {
-            c.scaleX = 1 + force * 0.03
-            c.scaleY = 1 - force * 0.03
+            const maxDeform = 0.3 // límite de deformación
+            c.scaleX = Math.min(1 + force * 0.03, 1 + maxDeform)
+            c.scaleY = Math.max(1 - force * 0.03, 1 - maxDeform)
           }
         }
 
@@ -156,7 +160,7 @@ export default function CanvasScene() {
         }
       })
 
-      // Dibujo del cuadrado sólido (sin deformación)
+      // Dibujo del cuadrado sólido
       ctx.fillStyle = '#ff0055'
       ctx.fillRect(square.x, square.y, square.size, square.size)
 
@@ -167,10 +171,7 @@ export default function CanvasScene() {
     const onMouseDown = (e: MouseEvent) => {
       if (isInsideSquare(e.clientX, e.clientY)) {
         isDragging = true
-        offset = {
-          x: e.clientX - square.x,
-          y: e.clientY - square.y,
-        }
+        offset = { x: e.clientX - square.x, y: e.clientY - square.y }
         lastPos = { x: square.x, y: square.y }
         square.vx = 0
         square.vy = 0
@@ -202,6 +203,7 @@ export default function CanvasScene() {
       canvas.removeEventListener('mousedown', onMouseDown)
       canvas.removeEventListener('mousemove', onMouseMove)
       canvas.removeEventListener('mouseup', onMouseUp)
+      window.removeEventListener('resize', resizeCanvas)
     }
   }, [])
 
