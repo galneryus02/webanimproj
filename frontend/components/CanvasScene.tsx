@@ -1,15 +1,18 @@
 'use client'
 import { useEffect, useRef } from 'react'
 import '../styles/canvas.css'
+import { Square, Circle } from '../types/shapes'
+import { updateSquare, handleSquareBounds, updateCircles, handleCollisions } from '../lib/physics'
+import { drawBackground, drawSquare, drawCircles } from '../lib/render'
+import { registerEvents } from '../lib/events'
 
 export default function CanvasScene() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    const canvas = canvasRef.current as HTMLCanvasElement
-    if (!canvas) return
-    const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
-    if (!ctx) return
+    const canvas = canvasRef.current!
+    const ctx = canvas.getContext('2d')!
+    const restitution = 0.8
 
     const resizeCanvas = () => {
       canvas.width = window.innerWidth
@@ -23,10 +26,7 @@ export default function CanvasScene() {
     let offset = { x: 0, y: 0 }
     let lastPos = { x: 0, y: 0 }
 
-    const restitution = 0.8
-
-    // Cuadrado sólido (no se deforma)
-    const square = {
+    const square: Square = {
       x: canvas.width / 2 - 40,
       y: canvas.height / 2 - 40,
       size: 80,
@@ -36,8 +36,7 @@ export default function CanvasScene() {
       friction: 0.98,
     }
 
-    // Círculos con deformación
-    const circles = Array.from({ length: 10 }, (_, i) => ({
+    const circles: Circle[] = Array.from({ length: 10 }, (_, i) => ({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
       r: 30 + Math.random() * 20,
@@ -49,160 +48,34 @@ export default function CanvasScene() {
       scaleY: 1,
     }))
 
-    const isInsideSquare = (x: number, y: number) =>
-      x >= square.x &&
-      x <= square.x + square.size &&
-      y >= square.y &&
-      y <= square.y + square.size
-
     const draw = () => {
       const W = canvas.width
       const H = canvas.height
       ctx.clearRect(0, 0, W, H)
 
-      // Fondo
-      const gradient = ctx.createLinearGradient(0, 0, W, H)
-      gradient.addColorStop(0, '#141414')
-      gradient.addColorStop(1, '#2b2b2b')
-      ctx.fillStyle = gradient
-      ctx.fillRect(0, 0, W, H)
+      drawBackground(ctx, W, H)
+      updateCircles(circles, W, H, restitution)
+      updateSquare(square, isDragging)
+      handleSquareBounds(square, W, H, restitution)
+      handleCollisions(square, circles, restitution, isDragging)
 
-      // Actualizar círculos
-      circles.forEach((c) => {
-        c.x += c.vx
-        c.y += c.vy
-        c.vx *= c.friction
-        c.vy *= c.friction
-
-        // Rebote contra bordes
-        if (c.x - c.r < 0 || c.x + c.r > W) {
-          c.vx *= -restitution
-          c.x = Math.max(c.r, Math.min(c.x, W - c.r))
-        }
-        if (c.y - c.r < 0 || c.y + c.r > H) {
-          c.vy *= -restitution
-          c.y = Math.max(c.r, Math.min(c.y, H - c.r))
-        }
-
-        // Dibujo con deformación
-        ctx.save()
-        ctx.translate(c.x, c.y)
-        ctx.scale(c.scaleX, c.scaleY)
-        ctx.beginPath()
-        ctx.arc(0, 0, c.r, 0, Math.PI * 2)
-        ctx.fillStyle = c.color
-        ctx.fill()
-        ctx.restore()
-
-        // Recuperación gradual de forma
-        c.scaleX += (1 - c.scaleX) * 0.1
-        c.scaleY += (1 - c.scaleY) * 0.1
-      })
-
-      // Física del cuadrado
-      if (!isDragging) {
-        square.vy += square.gravity
-        square.vx *= square.friction
-        square.vy *= square.friction
-        square.x += square.vx
-        square.y += square.vy
-      }
-
-      // Rebote contra bordes
-      if (square.x < 0 || square.x + square.size > W) {
-        square.vx *= -restitution
-        square.x = Math.max(0, Math.min(square.x, W - square.size))
-      }
-      if (square.y < 0 || square.y + square.size > H) {
-        square.vy *= -restitution
-        square.y = Math.max(0, Math.min(square.y, H - square.size))
-      }
-      // Colisión con círculos
-      circles.forEach((c) => {
-        const dx = (square.x + square.size / 2) - c.x
-        const dy = (square.y + square.size / 2) - c.y
-        const dist = Math.sqrt(dx * dx + dy * dy)
-        const minDist = c.r + square.size / 2
-
-        if (dist < minDist) {
-          const nx = dx / dist
-          const ny = dy / dist
-          const overlap = minDist - dist
-
-          // Corrección absoluta de penetración
-          square.x += nx * overlap
-          square.y += ny * overlap
-
-          // Rebote vectorial
-          const dot = square.vx * nx + square.vy * ny
-          square.vx -= 2 * dot * nx
-          square.vy -= 2 * dot * ny
-          square.vx *= restitution
-          square.vy *= restitution
-
-          // Empujar círculo
-          c.vx += square.vx * 0.5
-          c.vy += square.vy * 0.5
-
-          // Deformación contenida y realista (solo círculos)
-          const force = Math.abs(dot)
-          if (force > 5) {
-            const maxDeform = 0.3 // límite de deformación
-            c.scaleX = Math.min(1 + force * 0.03, 1 + maxDeform)
-            c.scaleY = Math.max(1 - force * 0.03, 1 - maxDeform)
-          }
-        }
-
-        // Interacción al arrastrar
-        if (isDragging && dist < minDist + 50) {
-          c.vx += (dx / dist) * -0.5
-          c.vy += (dy / dist) * -0.5
-        }
-      })
-
-      // Dibujo del cuadrado sólido
-      ctx.fillStyle = '#ff0055'
-      ctx.fillRect(square.x, square.y, square.size, square.size)
+      drawCircles(ctx, circles)
+      drawSquare(ctx, square)
 
       raf = requestAnimationFrame(draw)
     }
 
-    // Eventos
-    const onMouseDown = (e: MouseEvent) => {
-      if (isInsideSquare(e.clientX, e.clientY)) {
-        isDragging = true
-        offset = { x: e.clientX - square.x, y: e.clientY - square.y }
-        lastPos = { x: square.x, y: square.y }
-        square.vx = 0
-        square.vy = 0
-      }
-    }
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (isDragging) {
-        square.x = e.clientX - offset.x
-        square.y = e.clientY - offset.y
-        square.vx = square.x - lastPos.x
-        square.vy = square.y - lastPos.y
-        lastPos = { x: square.x, y: square.y }
-      }
-    }
-
-    const onMouseUp = () => {
-      isDragging = false
-    }
-
-    canvas.addEventListener('mousedown', onMouseDown)
-    canvas.addEventListener('mousemove', onMouseMove)
-    canvas.addEventListener('mouseup', onMouseUp)
+    const cleanupEvents = registerEvents(canvas, square,
+      (dragging) => { isDragging = dragging },
+      (o) => { offset = o },
+      (p) => { lastPos = p }
+    )
 
     raf = requestAnimationFrame(draw)
 
     return () => {
       if (raf !== null) cancelAnimationFrame(raf)
-      canvas.removeEventListener('mousedown', onMouseDown)
-      canvas.removeEventListener('mousemove', onMouseMove)
-      canvas.removeEventListener('mouseup', onMouseUp)
+      cleanupEvents()
       window.removeEventListener('resize', resizeCanvas)
     }
   }, [])
