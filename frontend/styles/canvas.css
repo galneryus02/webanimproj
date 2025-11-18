@@ -4,4 +4,5 @@
   height: 100vh;
   background: #0f0f0f;
   cursor: grab;
+  user-select: none;
 }
