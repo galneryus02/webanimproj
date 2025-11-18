@@ -7,6 +7,10 @@ export const registerEvents = (
   setOffset: (offset: { x: number; y: number }) => void,
   setLastPos: (pos: { x: number; y: number }) => void
 ) => {
+  let dragging = false
+  let offset = { x: 0, y: 0 }
+  let lastPos = { x: 0, y: 0 }
+
   const isInsideSquare = (x: number, y: number) =>
     x >= square.x &&
     x <= square.x + square.size &&
@@ -16,25 +20,32 @@ export const registerEvents = (
   // Mouse
   const onMouseDown = (e: MouseEvent) => {
     if (isInsideSquare(e.clientX, e.clientY)) {
+      dragging = true
       setDragging(true)
-      setOffset({ x: e.clientX - square.x, y: e.clientY - square.y })
-      setLastPos({ x: square.x, y: square.y })
+      offset = { x: e.clientX - square.x, y: e.clientY - square.y }
+      setOffset(offset)
+      lastPos = { x: square.x, y: square.y }
+      setLastPos(lastPos)
       square.vx = 0
       square.vy = 0
     }
   }
 
   const onMouseMove = (e: MouseEvent) => {
-    if ((square as any).isDragging) {
-      square.x = e.clientX - (square as any).offset.x
-      square.y = e.clientY - (square as any).offset.y
-      square.vx = square.x - (square as any).lastPos.x
-      square.vy = square.y - (square as any).lastPos.y
-      setLastPos({ x: square.x, y: square.y })
+    if (dragging) {
+      square.x = e.clientX - offset.x
+      square.y = e.clientY - offset.y
+      square.vx = square.x - lastPos.x
+      square.vy = square.y - lastPos.y
+      lastPos = { x: square.x, y: square.y }
+      setLastPos(lastPos)
     }
   }
 
-  const onMouseUp = () => setDragging(false)
+  const onMouseUp = () => {
+    dragging = false
+    setDragging(false)
+  }
 
   // Touch helpers
   const getTouchPos = (e: TouchEvent) => {
@@ -46,9 +57,12 @@ export const registerEvents = (
     e.preventDefault()
     const pos = getTouchPos(e)
     if (isInsideSquare(pos.x, pos.y)) {
+      dragging = true
       setDragging(true)
-      setOffset({ x: pos.x - square.x, y: pos.y - square.y })
-      setLastPos({ x: square.x, y: square.y })
+      offset = { x: pos.x - square.x, y: pos.y - square.y }
+      setOffset(offset)
+      lastPos = { x: square.x, y: square.y }
+      setLastPos(lastPos)
       square.vx = 0
       square.vy = 0
     }
@@ -56,17 +70,21 @@ export const registerEvents = (
 
   const onTouchMove = (e: TouchEvent) => {
     e.preventDefault()
-    if ((square as any).isDragging) {
+    if (dragging) {
       const pos = getTouchPos(e)
-      square.x = pos.x - (square as any).offset.x
-      square.y = pos.y - (square as any).offset.y
-      square.vx = square.x - (square as any).lastPos.x
-      square.vy = square.y - (square as any).lastPos.y
-      setLastPos({ x: square.x, y: square.y })
+      square.x = pos.x - offset.x
+      square.y = pos.y - offset.y
+      square.vx = square.x - lastPos.x
+      square.vy = square.y - lastPos.y
+      lastPos = { x: square.x, y: square.y }
+      setLastPos(lastPos)
     }
   }
 
-  const onTouchEnd = () => setDragging(false)
+  const onTouchEnd = () => {
+    dragging = false
+    setDragging(false)
+  }
 
   // Registrar eventos
   canvas.addEventListener('mousedown', onMouseDown)
