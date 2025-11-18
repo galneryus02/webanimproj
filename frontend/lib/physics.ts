@@ -60,22 +60,18 @@ export const handleCollisions = (
       const ny = dy / dist
       const overlap = minDist - dist
 
-      // Corrección absoluta
       square.x += nx * overlap
       square.y += ny * overlap
 
-      // Rebote vectorial
       const dot = square.vx * nx + square.vy * ny
       square.vx -= 2 * dot * nx
       square.vy -= 2 * dot * ny
       square.vx *= restitution
       square.vy *= restitution
 
-      // Empujar círculo
       c.vx += square.vx * 0.5
       c.vy += square.vy * 0.5
 
-      // Deformación contenida
       const force = Math.abs(dot)
       if (force > 5) {
         const maxDeform = 0.3
@@ -84,7 +80,6 @@ export const handleCollisions = (
       }
     }
 
-    // Interacción al arrastrar
     if (isDragging && dist < minDist + 50) {
       c.vx += (dx / dist) * -0.5
       c.vy += (dy / dist) * -0.5
