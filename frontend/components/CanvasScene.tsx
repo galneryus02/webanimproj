@@ -19,7 +19,7 @@ export default function CanvasScene() {
     let offset = { x: 0, y: 0 }
     let lastPos = { x: 0, y: 0 }
 
-    const restitution = 0.8 // rebote con pérdida parcial de energía
+    const restitution = 0.8
 
     const square = {
       x: canvas.width / 2 - 40,
@@ -36,6 +36,9 @@ export default function CanvasScene() {
       y: Math.random() * canvas.height,
       r: 30 + Math.random() * 20,
       color: `hsl(${i * 36}, 70%, 60%)`,
+      vx: 0,
+      vy: 0,
+      friction: 0.95,
     }))
 
     const isInsideSquare = (x: number, y: number) =>
@@ -56,8 +59,24 @@ export default function CanvasScene() {
       ctx.fillStyle = gradient
       ctx.fillRect(0, 0, W, H)
 
-      // Círculos flotantes
+      // Actualizar círculos
       circles.forEach((c) => {
+        c.x += c.vx
+        c.y += c.vy
+        c.vx *= c.friction
+        c.vy *= c.friction
+
+        // Rebote contra bordes
+        if (c.x - c.r < 0 || c.x + c.r > W) {
+          c.vx *= -restitution
+          c.x = Math.max(c.r, Math.min(c.x, W - c.r))
+        }
+        if (c.y - c.r < 0 || c.y + c.r > H) {
+          c.vy *= -restitution
+          c.y = Math.max(c.r, Math.min(c.y, H - c.r))
+        }
+
+        // Dibujo
         ctx.beginPath()
         ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2)
         ctx.fillStyle = c.color
@@ -71,46 +90,49 @@ export default function CanvasScene() {
         square.vy *= square.friction
         square.x += square.vx
         square.y += square.vy
-
-        // Rebote contra bordes
-        if (square.x < 0 || square.x + square.size > W) {
-          square.vx *= -restitution
-          square.x = Math.max(0, Math.min(square.x, W - square.size))
-        }
-        if (square.y < 0 || square.y + square.size > H) {
-          square.vy *= -restitution
-          square.y = Math.max(0, Math.min(square.y, H - square.size))
-        }
-
-        // Colisión con círculos (rebote vectorial)
-        circles.forEach((c) => {
-          const dx = (square.x + square.size / 2) - c.x
-          const dy = (square.y + square.size / 2) - c.y
-          const dist = Math.sqrt(dx * dx + dy * dy)
-          const minDist = c.r + square.size / 2
-
-          if (dist < minDist) {
-            // Normal del choque
-            const nx = dx / dist
-            const ny = dy / dist
-
-            // Proyección de velocidad sobre la normal
-            const dot = square.vx * nx + square.vy * ny
-
-            // Rebote: invertir componente normal
-            square.vx -= 2 * dot * nx
-            square.vy -= 2 * dot * ny
-
-            // Aplicar restitución
-            square.vx *= restitution
-            square.vy *= restitution
-
-            // Empujar fuera del círculo
-            square.x = c.x + nx * minDist - square.size / 2
-            square.y = c.y + ny * minDist - square.size / 2
-          }
-        })
       }
+
+      // Rebote contra bordes
+      if (square.x < 0 || square.x + square.size > W) {
+        square.vx *= -restitution
+        square.x = Math.max(0, Math.min(square.x, W - square.size))
+      }
+      if (square.y < 0 || square.y + square.size > H) {
+        square.vy *= -restitution
+        square.y = Math.max(0, Math.min(square.y, H - square.size))
+      }
+
+      // Colisión con círculos
+      circles.forEach((c) => {
+        const dx = (square.x + square.size / 2) - c.x
+        const dy = (square.y + square.size / 2) - c.y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        const minDist = c.r + square.size / 2
+
+        if (dist < minDist) {
+          const nx = dx / dist
+          const ny = dy / dist
+          const dot = square.vx * nx + square.vy * ny
+
+          square.vx -= 2 * dot * nx
+          square.vy -= 2 * dot * ny
+          square.vx *= restitution
+          square.vy *= restitution
+
+          square.x = c.x + nx * minDist - square.size / 2
+          square.y = c.y + ny * minDist - square.size / 2
+
+          // Empujar círculo con fuerza proporcional
+          c.vx += square.vx * 0.5
+          c.vy += square.vy * 0.5
+        }
+
+        // Interacción al arrastrar
+        if (isDragging && dist < minDist + 50) {
+          c.vx += (dx / dist) * -0.5
+          c.vy += (dy / dist) * -0.5
+        }
+      })
 
       // Dibujo del cuadrado
       ctx.fillStyle = '#ff0055'
@@ -137,7 +159,6 @@ export default function CanvasScene() {
       if (isDragging) {
         square.x = e.clientX - offset.x
         square.y = e.clientY - offset.y
-        // calcular velocidad según arrastre
         square.vx = square.x - lastPos.x
         square.vy = square.y - lastPos.y
         lastPos = { x: square.x, y: square.y }
