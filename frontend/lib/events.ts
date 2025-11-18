@@ -13,6 +13,7 @@ export const registerEvents = (
     y >= square.y &&
     y <= square.y + square.size
 
+  // Mouse
   const onMouseDown = (e: MouseEvent) => {
     if (isInsideSquare(e.clientX, e.clientY)) {
       setDragging(true)
@@ -35,6 +36,7 @@ export const registerEvents = (
 
   const onMouseUp = () => setDragging(false)
 
+  // Touch helpers
   const getTouchPos = (e: TouchEvent) => {
     const touch = e.touches[0]
     return { x: touch.clientX, y: touch.clientY }
@@ -66,6 +68,23 @@ export const registerEvents = (
 
   const onTouchEnd = () => setDragging(false)
 
+  // Registrar eventos
   canvas.addEventListener('mousedown', onMouseDown)
   canvas.addEventListener('mousemove', onMouseMove)
-  canvas.add
+  canvas.addEventListener('mouseup', onMouseUp)
+
+  canvas.addEventListener('touchstart', onTouchStart, { passive: false })
+  canvas.addEventListener('touchmove', onTouchMove, { passive: false })
+  canvas.addEventListener('touchend', onTouchEnd)
+
+  // Cleanup
+  return () => {
+    canvas.removeEventListener('mousedown', onMouseDown)
+    canvas.removeEventListener('mousemove', onMouseMove)
+    canvas.removeEventListener('mouseup', onMouseUp)
+
+    canvas.removeEventListener('touchstart', onTouchStart)
+    canvas.removeEventListener('touchmove', onTouchMove)
+    canvas.removeEventListener('touchend', onTouchEnd)
+  }
+}
