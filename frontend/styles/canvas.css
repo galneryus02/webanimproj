@@ -1,0 +1,7 @@
+.canvas-scene {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  background: #0f0f0f;
+  cursor: grab;
+}
