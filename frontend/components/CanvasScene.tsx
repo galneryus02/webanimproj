@@ -17,6 +17,9 @@ export default function CanvasScene() {
     let raf: number | null = null
     let isDragging = false
     let offset = { x: 0, y: 0 }
+    let lastPos = { x: 0, y: 0 }
+
+    const restitution = 0.8 // rebote con pérdida parcial de energía
 
     const square = {
       x: canvas.width / 2 - 40,
@@ -71,15 +74,15 @@ export default function CanvasScene() {
 
         // Rebote contra bordes
         if (square.x < 0 || square.x + square.size > W) {
-          square.vx *= -1
+          square.vx *= -restitution
           square.x = Math.max(0, Math.min(square.x, W - square.size))
         }
         if (square.y < 0 || square.y + square.size > H) {
-          square.vy *= -1
+          square.vy *= -restitution
           square.y = Math.max(0, Math.min(square.y, H - square.size))
         }
 
-        // Colisión con círculos
+        // Colisión con círculos (rebote vectorial)
         circles.forEach((c) => {
           const dx = (square.x + square.size / 2) - c.x
           const dy = (square.y + square.size / 2) - c.y
@@ -87,11 +90,24 @@ export default function CanvasScene() {
           const minDist = c.r + square.size / 2
 
           if (dist < minDist) {
-            square.vx *= -1
-            square.vy *= -1
-            const angle = Math.atan2(dy, dx)
-            square.x = c.x + Math.cos(angle) * minDist - square.size / 2
-            square.y = c.y + Math.sin(angle) * minDist - square.size / 2
+            // Normal del choque
+            const nx = dx / dist
+            const ny = dy / dist
+
+            // Proyección de velocidad sobre la normal
+            const dot = square.vx * nx + square.vy * ny
+
+            // Rebote: invertir componente normal
+            square.vx -= 2 * dot * nx
+            square.vy -= 2 * dot * ny
+
+            // Aplicar restitución
+            square.vx *= restitution
+            square.vy *= restitution
+
+            // Empujar fuera del círculo
+            square.x = c.x + nx * minDist - square.size / 2
+            square.y = c.y + ny * minDist - square.size / 2
           }
         })
       }
@@ -111,6 +127,7 @@ export default function CanvasScene() {
           x: e.clientX - square.x,
           y: e.clientY - square.y,
         }
+        lastPos = { x: square.x, y: square.y }
         square.vx = 0
         square.vy = 0
       }
@@ -120,6 +137,10 @@ export default function CanvasScene() {
       if (isDragging) {
         square.x = e.clientX - offset.x
         square.y = e.clientY - offset.y
+        // calcular velocidad según arrastre
+        square.vx = square.x - lastPos.x
+        square.vy = square.y - lastPos.y
+        lastPos = { x: square.x, y: square.y }
       }
     }
 
