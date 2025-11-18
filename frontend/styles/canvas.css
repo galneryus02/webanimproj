@@ -1,8 +1,12 @@
 .canvas-scene {
-  display: block;
   width: 100vw;
   height: 100vh;
-  background: #0f0f0f;
-  cursor: grab;
-  user-select: none;
+  display: block;
+  touch-action: none; /* evita scroll accidental al arrastrar */
+}
+
+@supports (-webkit-touch-callout: none) {
+  .canvas-scene {
+    height: -webkit-fill-available; /* corrige 100vh en iOS Safari */
+  }
 }
