@@ -4,13 +4,10 @@ import '../styles/canvas.css'
 
 export default function CanvasScene() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const isDraggingRef = useRef(false)
-  const offsetRef = useRef({ x: 0, y: 0 })
 
   useEffect(() => {
     const canvas = canvasRef.current as HTMLCanvasElement
     if (!canvas) return
-
     const ctx = canvas.getContext('2d') as CanvasRenderingContext2D
     if (!ctx) return
 
@@ -18,6 +15,8 @@ export default function CanvasScene() {
     canvas.height = window.innerHeight
 
     let raf: number | null = null
+    let isDragging = false
+    let offset = { x: 0, y: 0 }
 
     const square = {
       x: canvas.width / 2 - 40,
@@ -63,7 +62,7 @@ export default function CanvasScene() {
       })
 
       // Física del cuadrado
-      if (!isDraggingRef.current) {
+      if (!isDragging) {
         square.vy += square.gravity
         square.vx *= square.friction
         square.vy *= square.friction
@@ -88,10 +87,8 @@ export default function CanvasScene() {
           const minDist = c.r + square.size / 2
 
           if (dist < minDist) {
-            // Rebote simple: invertir velocidad
             square.vx *= -1
             square.vy *= -1
-            // Empujar fuera del círculo
             const angle = Math.atan2(dy, dx)
             square.x = c.x + Math.cos(angle) * minDist - square.size / 2
             square.y = c.y + Math.sin(angle) * minDist - square.size / 2
@@ -106,11 +103,11 @@ export default function CanvasScene() {
       raf = requestAnimationFrame(draw)
     }
 
-    // Listeners
+    // Eventos
     const onMouseDown = (e: MouseEvent) => {
       if (isInsideSquare(e.clientX, e.clientY)) {
-        isDraggingRef.current = true
-        offsetRef.current = {
+        isDragging = true
+        offset = {
           x: e.clientX - square.x,
           y: e.clientY - square.y,
         }
@@ -120,14 +117,14 @@ export default function CanvasScene() {
     }
 
     const onMouseMove = (e: MouseEvent) => {
-      if (isDraggingRef.current) {
-        square.x = e.clientX - offsetRef.current.x
-        square.y = e.clientY - offsetRef.current.y
+      if (isDragging) {
+        square.x = e.clientX - offset.x
+        square.y = e.clientY - offset.y
       }
     }
 
     const onMouseUp = () => {
-      isDraggingRef.current = false
+      isDragging = false
     }
 
     canvas.addEventListener('mousedown', onMouseDown)
