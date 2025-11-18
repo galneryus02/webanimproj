@@ -21,6 +21,7 @@ export default function CanvasScene() {
 
     const restitution = 0.8
 
+    // Cuadrado sólido (no se deforma)
     const square = {
       x: canvas.width / 2 - 40,
       y: canvas.height / 2 - 40,
@@ -29,10 +30,9 @@ export default function CanvasScene() {
       vy: 0,
       gravity: 0.3,
       friction: 0.98,
-      scaleX: 1,
-      scaleY: 1,
     }
 
+    // Círculos con deformación
     const circles = Array.from({ length: 10 }, (_, i) => ({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
@@ -141,11 +141,9 @@ export default function CanvasScene() {
           c.vx += square.vx * 0.5
           c.vy += square.vy * 0.5
 
-          // Deformación por presión
+          // Deformación por presión (solo círculos)
           const force = Math.abs(dot)
           if (force > 5) {
-            square.scaleX = 1 + force * 0.05
-            square.scaleY = 1 - force * 0.05
             c.scaleX = 1 + force * 0.03
             c.scaleY = 1 - force * 0.03
           }
@@ -158,17 +156,9 @@ export default function CanvasScene() {
         }
       })
 
-      // Dibujo del cuadrado con deformación
-      ctx.save()
-      ctx.translate(square.x + square.size / 2, square.y + square.size / 2)
-      ctx.scale(square.scaleX, square.scaleY)
+      // Dibujo del cuadrado sólido (sin deformación)
       ctx.fillStyle = '#ff0055'
-      ctx.fillRect(-square.size / 2, -square.size / 2, square.size, square.size)
-      ctx.restore()
-
-      // Recuperación gradual de forma
-      square.scaleX += (1 - square.scaleX) * 0.1
-      square.scaleY += (1 - square.scaleY) * 0.1
+      ctx.fillRect(square.x, square.y, square.size, square.size)
 
       raf = requestAnimationFrame(draw)
     }
